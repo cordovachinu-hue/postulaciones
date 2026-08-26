@@ -142,6 +142,11 @@
   .score-pill.baja{background:#f6dcd9;color:var(--warn);}
   .c-meta{display:flex;flex-wrap:wrap;gap:6px;margin:8px 0;}
   .c-meta .tag{font-size:11px;background:var(--panel2);padding:4px 9px;border-radius:6px;}
+  .c-meta .tag-green{background:#dff3e0;color:#1f6d31;}
+  .c-meta .tag-red{background:#fbe1df;color:#9c2b1f;}
+  .c-descal{background:#9c2b1f;color:#fff3e0;border-radius:10px;padding:8px 12px;font-size:12px;margin-bottom:10px;}
+  .c-descal strong{text-transform:uppercase;letter-spacing:.02em;}
+  .c-descal ul{list-style:disc;}
   .c-motivo{font-size:12.5px;color:var(--muted);background:var(--panel);border-radius:6px;padding:8px 10px;margin:8px 0;}
   .status-row{display:flex;flex-wrap:wrap;gap:5px;margin:10px 0 6px;}
   .status-btn{font-size:11px;font-weight:600;padding:4px 10px;border-radius:20px;cursor:pointer;border:1px solid var(--line);background:var(--panel);color:var(--muted);}
@@ -422,6 +427,10 @@
           <label class="field"><span class="field-label">Correo electrónico *</span><input type="email" name="correo" required></label>
           <label class="field"><span class="field-label">Ciudad</span><input type="text" name="ciudad"></label>
         </div>
+        <div class="row2">
+          <label class="field"><span class="field-label">Edad</span><input type="number" name="edad" min="16" max="70" placeholder="Ej: 22"></label>
+          <label class="field"><span class="field-label">Profesión / carrera (si aplica)</span><input type="text" name="profesion" placeholder="Ej: estudiante de Administración, bachiller, técnico en..."></label>
+        </div>
       </div>
       <div class="step-actions form-nav" data-nav-step="0"><span class="step-hint">Completa los campos obligatorios para continuar.</span><div class="right"><button type="button" class="btn next-btn" data-next-step="1">Continuar →</button></div></div>
 
@@ -623,6 +632,7 @@
 
     <div class="card">
       <h2>Candidatos</h2>
+      <p class="sub" style="margin:-4px 0 12px;">"Edad" y "profesión" son campos nuevos del formulario: solo aparecen en postulaciones enviadas desde ahora. Las postulaciones anteriores se muestran como "No especificada" en esos dos filtros. El sexo se estima a partir del nombre (no es un dato confirmado por la persona).</p>
       <div class="controls">
         <button type="button" class="chip active" data-filter="Todos">Todos</button>
         <button type="button" class="chip" data-filter="Alta">Idoneidad alta</button>
@@ -634,6 +644,49 @@
           <option value="recent">Ordenar: más reciente</option>
         </select>
         <span class="count" id="countLabel"></span>
+      </div>
+      <div class="controls" style="margin-top:-6px;">
+        <select id="filterSexo">
+          <option value="">Sexo: todos</option>
+          <option value="Femenino">Femenino</option>
+          <option value="Masculino">Masculino</option>
+          <option value="none">No identificado</option>
+        </select>
+        <select id="filterEdad">
+          <option value="">Edad: todas</option>
+          <option value="18-24">18 a 24</option>
+          <option value="25-34">25 a 34</option>
+          <option value="35-99">35 o más</option>
+          <option value="none">No especificada</option>
+        </select>
+        <select id="filterEstudios">
+          <option value="">Formación: todas</option>
+        </select>
+        <select id="filterExperiencia">
+          <option value="">Experiencia: todas</option>
+          <option value="0">Aún no tiene</option>
+          <option value="1">Menos de 6 meses</option>
+          <option value="2">6 meses a 1 año</option>
+          <option value="3">Más de 1 año</option>
+        </select>
+        <select id="filterDigital">
+          <option value="">Habilidad digital: todas</option>
+          <option value="0">Le cuesta</option>
+          <option value="1">Básica</option>
+          <option value="2">Buena</option>
+          <option value="3">Muy buena</option>
+        </select>
+        <select id="filterTrait">
+          <option value="">Perfil psicológico: todos</option>
+        </select>
+        <select id="filterSenal">
+          <option value="">Señales: todas</option>
+          <option value="descal">Descalificador automático 🚫</option>
+          <option value="red">Con puntos a verificar 🚩</option>
+          <option value="green">Con destacados ✅</option>
+          <option value="none">Sin señales</option>
+        </select>
+        <input type="text" id="filterProfesion" placeholder="Buscar por profesión/carrera..." style="max-width:220px;">
       </div>
       <ul id="candidates"></ul>
       <p class="empty" id="emptyMsg" style="display:none;">Aún no hay candidatos registrados.</p>
@@ -722,6 +775,46 @@ function traitFor(name, value){
 }
 
 // ---------------------------------------------------------------------------
+// Sexo estimado por nombre (heurística) — el formulario no pregunta el sexo
+// directamente, así que esto NO se guarda en la base de datos; se calcula al
+// mostrar cada tarjeta en el panel, únicamente para poder filtrar. Combina una
+// lista de nombres ya vistos entre los postulados con una regla general para
+// nombres nuevos. Puede fallar en casos poco comunes — es una estimación, no
+// un dato confirmado por la persona.
+// ---------------------------------------------------------------------------
+const NOMBRES_FEMENINOS = new Set(["adriana","aida","alejandra","ana","andrea","angela","angelina","angiely","anyela","anyi","ariana","aura","camelia","camila","carmen","clara","claudia","dayanna","daniela","danna","diana","dianis","emely","eniluz","estefania","eunice","gabriela","genesis","geraldin","geraldine","gicelle","gilma","gina","gladys","greismary","greisy","guadalupe","isabel","jeimy","jennifer","kaliena","karina","karla","katerin","katerine","katy","kendy","laudid","laura","leidys","lia","lianis","licy","lilibeth","lina","lindsay","lizeth","lorena","luisa","magdalena","maria","mariana","maryoris","mayerlis","mayerlys","melanny","melany","milena","mileydis","mya","natalia","nathalya","nawal","nidia","norleny","olga","paola","paula","paulina","saira","samara","sara","saray","sharys","shirley","shirly","shirlys","silenne","sixta","stefania","stefany","valentina","valeri","valeria","veronica","wendy","xesia","ximena","xiomara","yady","yarisela","yeidis","yeimy","yennifer","yeris","yesenia","yessica","yolany","yulieth","yuranis","cristin"]);
+const NOMBRES_MASCULINOS = new Set(["andres","argemiro","brayan","camilo","carlos","cristian","cesar","deiker","deimer","diego","dionisio","edgar","eduardo","edwin","efrain","eliab","emuar","esteban","fabian","francisco","gabriel","ivan","jesus","jorge","jose","juan","julian","kevin","luis","marlon","martin","mauricio","miguel","robert","santiago","sebastian","yossimar"]);
+const NOMBRES_MASC_EXCEPCION_TERMINA_A = new Set(["luca"]);
+function normaliza(s){
+  return String(s||"").toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g,"").trim();
+}
+function inferSexo(nombreCompleto){
+  const primer = normaliza((nombreCompleto||"").split(/\s+/)[0] || "");
+  if(!primer) return "";
+  if(NOMBRES_FEMENINOS.has(primer)) return "Femenino";
+  if(NOMBRES_MASCULINOS.has(primer)) return "Masculino";
+  if(NOMBRES_MASC_EXCEPCION_TERMINA_A.has(primer)) return "Masculino";
+  if(/a$/.test(primer)) return "Femenino";
+  if(/[ol]$/.test(primer)) return "Masculino";
+  return "";
+}
+
+// Traits únicos de las 5 preguntas "Cómo sueles actuar" — para el filtro de
+// perfil psicológico. Todas las opciones son deliberadamente positivas (no
+// hay respuesta "mala"), así que este filtro sirve para buscar un estilo de
+// trabajo específico, no para descartar a nadie.
+const TRAIT_OPTIONS = ["Comunicación asertiva","Compromiso con límites claros","Compromiso y flexibilidad","Colaboración","Empatía","Honestidad","Iniciativa","Organización","Orientación a resultados","Orientación al cliente","Prioriza al cliente","Prudencia","Resolución de problemas","Trabajo en equipo"];
+
+// Extrae el detalle en texto libre ("— ...") que va después de cada opción
+// elegida en scoreLabels, ej. de "Experiencia...: 6m – 1 año — en el Hotel X"
+// devuelve "en el Hotel X".
+function detailFrom(label){
+  if(!label) return "";
+  const idx = label.indexOf(" — ");
+  return idx === -1 ? "" : label.slice(idx + 3).trim();
+}
+
+// ---------------------------------------------------------------------------
 // "Cómo sueles actuar" — mini cuestionario de estilo de trabajo. Preguntas de
 // situación (no auto-calificación directa) para conocer mejor al aspirante;
 // cada opción queda etiquetada con el rasgo que revela, y esa lectura se
@@ -756,6 +849,8 @@ form.addEventListener("submit", function(e){
     telefono: (data.get("telefono")||"").trim(),
     correo: (data.get("correo")||"").trim(),
     ciudad: (data.get("ciudad")||"").trim(),
+    edad: (data.get("edad")||"").trim(),
+    profesion: (data.get("profesion")||"").trim(),
     estudios: data.get("estudios")||"",
     salario: (data.get("salario")||"").trim(),
     scores: scores,
@@ -919,9 +1014,212 @@ function waLink(telefono, nombre){
   return "https://wa.me/" + digits + "?text=" + encodeURIComponent(msg);
 }
 
+// ---------------------------------------------------------------------------
+// Señales (verde / roja) — pensadas para apoyar la entrevista, no para
+// descartar automáticamente a nadie. Deliberadamente NO usan las respuestas
+// del cuestionario "Cómo sueles actuar" (psi_1–psi_5), porque ahí no existe
+// una respuesta incorrecta por diseño. Se basan en otras señales objetivas:
+// experiencia relacionada, hoja de vida, disponibilidad y qué tan específica
+// es la motivación. Cada señal roja trae también la pregunta sugerida para
+// la siguiente etapa.
+// ---------------------------------------------------------------------------
+const HOSP_KW = ["restaurante","mesero","mesera","hotel","bar","cafeteria","hosteleria","turismo","recepcion","call center","atencion al cliente","servicio al cliente","ventas","domicilios","evento","catering","hostel"];
+
+// ---------------------------------------------------------------------------
+// Tono y forma de comunicarse por escrito — a partir de TODO el texto libre
+// que ya escribió cada postulante (la respuesta de "¿Por qué te gustaría
+// trabajar en Córdova?" más el detalle que puso en cada pregunta de
+// habilidades). No es un diagnóstico de personalidad: el texto escrito no
+// siempre refleja cómo es alguien en persona, así que cada señal de tono es
+// solo un punto a verificar en la entrevista, nunca un motivo para descartar
+// por sí solo. No se guarda nada nuevo ni se toca la información ya
+// recopilada — se calcula al vuelo, igual que el resto de señales.
+// ---------------------------------------------------------------------------
+const RUDEZA_KW = ["estupid","idiota","imbecil","pendej","malparid","hijueput","hijoeput","gonorre","asqueros","al carajo","no me importa un carajo","que se joda","de mierda"];
+const SOBERBIA_KW = ["soy el mejor","soy la mejor","nadie como yo","nadie lo hace como yo","ya lo se todo","no tengo nada que aprender","estoy sobrecalificad","la gente no sabe trabajar","no cualquiera puede hacer esto","merezco mas","exijo que","yo no me equivoco"];
+const CORTESIA_KW = ["gracias","por favor","cordialmente","buenas tardes","buenos dias","agradezco","un gusto","saludos","de antemano","con respeto"];
+
+function textoLibreDe(d){
+  const partes = [d.motivo || ""];
+  (d.scoreLabels || []).forEach(function(label){ partes.push(detailFrom(label)); });
+  return partes.filter(Boolean).join(" . ");
+}
+
+function analizaTono(d){
+  const green = [], red = [];
+  const texto = textoLibreDe(d);
+  const norm = normaliza(texto);
+  const palabras = texto.trim().split(/\s+/).filter(Boolean);
+
+  const tieneRudeza = RUDEZA_KW.some(k => norm.includes(k));
+  const tieneSoberbia = SOBERBIA_KW.some(k => norm.includes(k));
+  const tieneCortesia = CORTESIA_KW.some(k => norm.includes(k));
+
+  if(tieneRudeza){
+    red.push({ txt: "Lenguaje agresivo o irrespetuoso en lo que escribió", q: "Vuelve a leer con calma esa respuesta y, en la entrevista, pregúntale directamente cómo maneja el estrés o un reclamo difícil de un cliente." });
+  }
+  if(tieneSoberbia){
+    red.push({ txt: "Tono que puede sonar soberbio, altivo o exigente por escrito", q: "Pídele que cuente una vez que tuvo que trabajar en equipo con alguien con quien no estaba de acuerdo — cómo lo manejó y qué aprendió." });
+  }
+  if(palabras.length > 0 && palabras.length < 8){
+    red.push({ txt: "Respuestas muy cortas — poco material para evaluar cómo se comunica por escrito", q: "Pídele, por WhatsApp o en persona, que te cuente con sus propias palabras por qué le interesa el cargo y qué espera del trabajo." });
+  }
+  if(tieneCortesia && palabras.length >= 15 && !tieneRudeza && !tieneSoberbia){
+    green.push({ txt: "Comunicación escrita clara y cordial" });
+  }
+
+  return { green, red };
+}
+
+// ---------------------------------------------------------------------------
+// Posible uso de IA (tipo ChatGPT) para redactar la respuesta — heurística
+// basada en frases de relleno muy formales y típicas de texto generado, y en
+// estructuras que casi nadie escribe a mano en un formulario desde el
+// celular (viñetas, listas numeradas, **negritas**). No es una prueba
+// definitiva: alguien puede simplemente escribir muy formal por su cuenta, y
+// esta heurística puede fallar en ambos sentidos. Se marca como un punto a
+// verificar en la entrevista, NO como algo descalificante — usar IA para
+// redactar no es necesariamente un problema; lo que importa es que la
+// persona pueda sostener y explicar lo escrito con sus propias palabras.
+// ---------------------------------------------------------------------------
+const IA_FRASES_KW = ["es fundamental","cabe destacar","cabe resaltar","cabe mencionar","sin duda alguna","sin lugar a dudas","juega un papel crucial","juega un papel fundamental","juega un papel importante","es importante mencionar","es importante destacar","de manera eficiente","de manera efectiva","no dudes en","estoy emocionado de poder","estoy emocionada de poder","en resumen","asimismo","por otro lado","en primer lugar","en conclusion","en la actualidad","aporta significativamente","aporta valor","brindar un servicio excepcional","compromiso inquebrantable","me apasiona brindar","estoy comprometido con","estoy comprometida con","en el mundo actual","por consiguiente","en definitiva","con el fin de","ademas de lo mencionado","tanto a nivel personal como profesional"];
+
+function detectaIA(d){
+  const red = [];
+  const texto = textoLibreDe(d);
+  const norm = normaliza(texto);
+  let puntos = 0;
+  IA_FRASES_KW.forEach(function(f){ if(norm.includes(f)) puntos++; });
+  const tieneListas = /(^|\n)\s*[-•*]\s+\S/.test(texto) || /(^|\n)\s*\d+[.)]\s+\S/.test(texto);
+  const tieneNegritas = /\*\*[^*]+\*\*/.test(texto);
+  if(tieneListas) puntos += 2;
+  if(tieneNegritas) puntos += 2;
+
+  if(puntos >= 2){
+    red.push({ txt: "Posible uso de IA para redactar la respuesta (frases o formato típicos de texto generado)", q: "Pídele que te explique con sus propias palabras, sin leer, por qué escribió eso — así confirmas que la idea sí es de ella/él." });
+  }
+  return { red };
+}
+
+function computeSignals(d){
+  const green = [], red = [];
+  const scores = d.scores || {};
+  const motivo = (d.motivo || "").trim();
+  const motivoNorm = normaliza(motivo);
+  const texperiencia = normaliza(detailFrom((d.scoreLabels || [])[0]));
+  const tieneExpRelacionada = HOSP_KW.some(k => texperiencia.includes(k));
+
+  if((scores.experiencia || 0) >= 2){
+    green.push({ txt: "Experiencia consolidada en atención al cliente (6 meses o más)" });
+  }
+  if(tieneExpRelacionada){
+    green.push({ txt: "Menciona experiencia previa en un rubro relacionado (servicio/hostelería/eventos)" });
+  }
+  if((scores.digital || 0) >= 2){
+    green.push({ txt: "Buen manejo de canales digitales / redes sociales" });
+  }
+  if((scores.disponibilidad || 0) === 3){
+    green.push({ txt: "Disponibilidad total para horario rotativo" });
+  }
+  if(motivoNorm.includes("cordova")){
+    green.push({ txt: "Motivación específica hacia Restaurante Córdova (no genérica)" });
+  }
+  if(d.cv){
+    green.push({ txt: "Adjuntó enlace de hoja de vida" });
+  }
+
+  if((scores.experiencia || 0) === 0 && !tieneExpRelacionada){
+    red.push({ txt: "Sin experiencia relacionada con atención al cliente", q: "¿Qué te atrae de este tipo de trabajo si aún no lo has hecho? ¿Has estado en situaciones parecidas (trato con público, resolver quejas)?" });
+  }
+  if(!motivo || motivo.length < 15){
+    red.push({ txt: "Motivación breve o poco específica", q: "¿Por qué te gustaría trabajar puntualmente en Restaurante Córdova y no en cualquier otro lugar?" });
+  }
+  if(!d.cv){
+    red.push({ txt: "No incluyó enlace de hoja de vida", q: "Pide que envíe la hoja de vida antes de continuar el proceso." });
+  }
+  if((scores.disponibilidad || 0) === 0){
+    red.push({ txt: "Marcó que no tiene disponibilidad para horario rotativo", q: "¿Qué días u horarios específicos no puedes cubrir? ¿Es algo fijo (estudio, otro trabajo) o podría ajustarse?" });
+  }
+  if((scores.digital || 0) === 0){
+    red.push({ txt: "Dice que se le dificulta el trabajo con medios digitales", q: "El cargo incluye contenido orgánico para redes — ¿qué tan cómoda te sentirías aprendiendo a grabar/editar videos cortos para Instagram?" });
+  }
+
+  const tono = analizaTono(d);
+  green.push.apply(green, tono.green);
+  red.push.apply(red, tono.red);
+
+  const ia = detectaIA(d);
+  red.push.apply(red, ia.red);
+
+  return { green, red };
+}
+
+// ---------------------------------------------------------------------------
+// Descalificadores automáticos — a diferencia de las señales anteriores
+// (que son "puntos a verificar"), estos son los criterios que Harol pidió
+// explícitamente que descalifiquen: sin disponibilidad para horario
+// rotativo, lenguaje agresivo/groserías, sin teléfono ni correo válido, sin
+// hoja de vida, solo bachillerato y sin ninguna experiencia relacionada,
+// hablar mal de una empresa o persona anterior, y varias fallas
+// ortográficas. Un candidato que cumple cualquiera de estos queda marcado
+// con una alerta fuerte y separada (🚫), distinta de las señales 🚩
+// normales. IMPORTANTE: por seguridad esto NO cambia el estado guardado del
+// candidato (Nuevo/Preseleccionado/etc. sigue igual en la base de datos) —
+// solo se muestra la alerta en el panel para que la decisión final de
+// descartar (botón "Descartado") la tomes tú. Así, si algún criterio da un
+// falso positivo (sobre todo el de ortografía, el menos exacto de todos),
+// no se pierde a nadie en silencio.
+// ---------------------------------------------------------------------------
+const EMPLEADOR_NEG_KW = ["mi jefe era","mi jefa era","mi jefe anterior","mi jefa anterior","la empresa anterior era","mis companeros eran","me trataban mal","me explotaban","no me pagaban bien","era un asco","era pesimo","era pesima","era terrible","no sabian trabajar","no valia la pena trabajar alli","puro problema","esa empresa es","era una porqueria","odio a mi antiguo jefe","mi ex jefe"];
+const ORTOGRAFIA_ERRORES_KW = ["aber","aya que","iva a","asta que","valla usted","haci es","amos a","ise las","iso las","estube","tuvistes","vinistes","andube","nose que","haiga","hicistes","fuistes","truje"];
+
+function contarErroresOrtografia(texto){
+  const norm = normaliza(texto);
+  let n = 0;
+  ORTOGRAFIA_ERRORES_KW.forEach(function(e){ if(norm.includes(e)) n++; });
+  return n;
+}
+
+function detectaDescalificadores(d){
+  const items = [];
+  const scores = d.scores || {};
+  const texto = textoLibreDe(d);
+  const norm = normaliza(texto);
+
+  if((scores.disponibilidad || 0) === 0){
+    items.push("Sin disponibilidad para horario rotativo");
+  }
+  if(RUDEZA_KW.some(function(k){ return norm.includes(k); })){
+    items.push("Lenguaje agresivo o groserías en sus respuestas");
+  }
+  const telOk = (d.telefono || "").replace(/\D/g,"").length >= 7;
+  const correoOk = /\S+@\S+\.\S+/.test(d.correo || "");
+  if(!telOk && !correoOk){
+    items.push("No dejó teléfono ni correo válido");
+  }
+  if(!d.cv){
+    items.push("No adjuntó hoja de vida");
+  }
+  if(d.estudios === "Bachillerato" && (scores.experiencia || 0) === 0){
+    items.push("Solo formación de bachillerato y sin ninguna experiencia relacionada");
+  }
+  if(EMPLEADOR_NEG_KW.some(function(k){ return norm.includes(k); })){
+    items.push("Habla mal de una empresa o persona anterior");
+  }
+  if(contarErroresOrtografia(texto) >= 3){
+    items.push("Varias fallas ortográficas en sus respuestas");
+  }
+
+  return items;
+}
+
 function renderCard(d){
   const tier = tierClass(d.nivel || "Media");
-  const sub = [d.ciudad, d.estudios].filter(Boolean).map(esc).join(" · ");
+  const sexo = inferSexo(d.nombre);
+  const subParts = [d.ciudad, d.estudios];
+  if(d.edad) subParts.push(d.edad + " años");
+  if(d.profesion) subParts.push(d.profesion);
+  const sub = subParts.filter(Boolean).map(esc).join(" · ");
   const contact = [
     d.telefono ? '<a href="tel:'+esc(d.telefono.replace(/\s+/g,""))+'">📞 '+esc(d.telefono)+'</a>' : "",
     d.correo ? '<a href="mailto:'+esc(d.correo)+'">✉️ '+esc(d.correo)+'</a>' : ""
@@ -941,9 +1239,23 @@ function renderCard(d){
     : '';
   const estiloChips = (d.estiloTraits || []).map(t => '<span class="tag">🧭 '+esc(t)+'</span>').join('');
   const estiloDetalle = (d.estiloLabels || []).join(" · ");
+  const sexoTag = sexo ? '<span class="tag">'+(sexo==="Femenino"?"♀":"♂")+' '+sexo+' <i style="opacity:.6;">(estimado)</i></span>' : '';
+
+  const signals = computeSignals(d);
+  const signalTags = [
+    signals.green.map(s => '<span class="tag tag-green" title="'+esc(s.txt)+'">✅ '+esc(s.txt)+'</span>').join(''),
+    signals.red.map(s => '<span class="tag tag-red" title="'+esc(s.txt)+'">🚩 '+esc(s.txt)+'</span>').join('')
+  ].join('');
+  const signalQuestions = signals.red.filter(s => s.q).map(s => '<li>'+esc(s.q)+'</li>').join('');
+
+  const descalificadores = detectaDescalificadores(d);
+  const descalBanner = descalificadores.length
+    ? '<div class="c-descal">🚫 <strong>Descalificador automático</strong> — no se descartó solo/a, revisa y confirma con el botón "Descartado" si aplica:<ul style="margin:4px 0 0 18px;padding:0;">'+descalificadores.map(t=>'<li>'+esc(t)+'</li>').join('')+'</ul></div>'
+    : '';
 
   return (
     '<li class="candidate" data-id="'+d.id+'" data-nivel="'+esc(d.nivel||'Media')+'">'+
+      descalBanner+
       '<div class="c-head">'+
         '<div>'+
           '<div class="c-name">'+esc(d.nombre||"Sin nombre")+'</div>'+
@@ -952,8 +1264,10 @@ function renderCard(d){
         '</div>'+
         '<span class="score-pill '+tier+'">'+(d.puntaje!=null? d.puntaje+'/18 ('+d.pct+'%) · ':'')+'Idoneidad '+esc((d.nivel||'Media').toLowerCase())+'</span>'+
       '</div>'+
-      (d.salario ? '<div class="c-meta"><span class="tag">💰 '+esc(d.salario)+'</span></div>' : '')+
+      (d.salario || sexoTag ? '<div class="c-meta">'+(d.salario?'<span class="tag">💰 '+esc(d.salario)+'</span>':'')+sexoTag+'</div>' : '')+
       (estiloChips ? '<div class="c-meta">'+estiloChips+'</div>' : '')+
+      (signalTags ? '<div class="c-meta">'+signalTags+'</div>' : '')+
+      (signalQuestions ? '<div class="c-motivo"><strong>Preguntas sugeridas para la próxima etapa:</strong><ul style="margin:4px 0 0 18px;padding:0;">'+signalQuestions+'</ul></div>' : '')+
       (detalle ? '<div class="c-motivo">'+esc(detalle)+'</div>' : '')+
       (estiloDetalle ? '<div class="c-motivo"><strong>Estilo de trabajo:</strong> '+esc(estiloDetalle)+'</div>' : '')+
       (d.motivo ? '<div class="c-motivo">"'+esc(d.motivo)+'"</div>' : '')+
@@ -964,7 +1278,62 @@ function renderCard(d){
 }
 
 function renderList(){
-  let filtered = allDocs.filter(d => currentFilter === "Todos" || d.nivel === currentFilter);
+  const fSexo = document.getElementById("filterSexo").value;
+  const fEdad = document.getElementById("filterEdad").value;
+  const fEstudios = document.getElementById("filterEstudios").value;
+  const fExperiencia = document.getElementById("filterExperiencia").value;
+  const fDigital = document.getElementById("filterDigital").value;
+  const fTrait = document.getElementById("filterTrait").value;
+  const fSenal = document.getElementById("filterSenal").value;
+  const fProfesion = normaliza(document.getElementById("filterProfesion").value);
+
+  let filtered = allDocs.filter(function(d){
+    if(currentFilter !== "Todos" && d.nivel !== currentFilter) return false;
+
+    if(fSexo){
+      const sexo = inferSexo(d.nombre);
+      if(fSexo === "none"){ if(sexo) return false; }
+      else if(sexo !== fSexo) return false;
+    }
+
+    if(fEdad){
+      const edad = parseInt(d.edad, 10);
+      if(fEdad === "none"){ if(edad) return false; }
+      else {
+        if(!edad) return false;
+        const [min, max] = fEdad.split("-").map(Number);
+        if(edad < min || edad > max) return false;
+      }
+    }
+
+    if(fEstudios && d.estudios !== fEstudios) return false;
+
+    if(fExperiencia){
+      const v = (d.scores && d.scores.experiencia) || 0;
+      if(String(v) !== fExperiencia) return false;
+    }
+
+    if(fDigital){
+      const v = (d.scores && d.scores.digital) || 0;
+      if(String(v) !== fDigital) return false;
+    }
+
+    if(fTrait && !(d.estiloTraits || []).includes(fTrait)) return false;
+
+    if(fSenal){
+      const s = computeSignals(d);
+      const d_desc = detectaDescalificadores(d);
+      if(fSenal === "descal" && d_desc.length === 0) return false;
+      if(fSenal === "red" && s.red.length === 0) return false;
+      if(fSenal === "green" && s.green.length === 0) return false;
+      if(fSenal === "none" && (s.red.length > 0 || s.green.length > 0 || d_desc.length > 0)) return false;
+    }
+
+    if(fProfesion && !normaliza(d.profesion).includes(fProfesion)) return false;
+
+    return true;
+  });
+
   const sortBy = document.getElementById("sortSelect").value;
   const rank = { "Alta":3, "Media":2, "Por desarrollar":1 };
   filtered = filtered.slice().sort((a,b) => {
@@ -974,7 +1343,7 @@ function renderList(){
   });
   candidatesEl.innerHTML = filtered.map(renderCard).join("");
   emptyMsg.style.display = allDocs.length ? "none" : "block";
-  countLabel.textContent = allDocs.length + (allDocs.length === 1 ? " candidato" : " candidatos");
+  countLabel.textContent = filtered.length + (filtered.length === 1 ? " candidato" : " candidatos") + (filtered.length !== allDocs.length ? " (de " + allDocs.length + ")" : "");
 }
 
 candidatesEl.addEventListener("click", function(e){
@@ -1004,6 +1373,32 @@ document.querySelectorAll(".chip[data-filter]").forEach(chip => {
   });
 });
 document.getElementById("sortSelect").addEventListener("change", renderList);
+
+// Formación: mismas opciones que el formulario público, para que coincidan exacto.
+(function populateEstudiosFilter(){
+  const sel = document.getElementById("filterEstudios");
+  form.querySelectorAll('select[name="estudios"] option').forEach(function(opt){
+    if(!opt.value) return;
+    const o = document.createElement("option");
+    o.value = opt.value; o.textContent = opt.value;
+    sel.appendChild(o);
+  });
+})();
+
+// Perfil psicológico: los 14 rasgos posibles de las 5 preguntas.
+(function populateTraitFilter(){
+  const sel = document.getElementById("filterTrait");
+  TRAIT_OPTIONS.forEach(function(t){
+    const o = document.createElement("option");
+    o.value = t; o.textContent = t;
+    sel.appendChild(o);
+  });
+})();
+
+["filterSexo","filterEdad","filterEstudios","filterExperiencia","filterDigital","filterTrait","filterSenal"].forEach(function(id){
+  document.getElementById(id).addEventListener("change", renderList);
+});
+document.getElementById("filterProfesion").addEventListener("input", renderList);
 
 
 // ---------------------------------------------------------------------------
