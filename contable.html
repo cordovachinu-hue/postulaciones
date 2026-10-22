@@ -651,7 +651,7 @@
         <h2>Panel de selección</h2>
         <p class="sub">Acceso exclusivo del equipo de Restaurante Córdova.</p>
         <form id="loginForm">
-          <label class="field"><span class="field-label">Usuario</span><input type="text" name="user" required autocomplete="username"></label>
+          <label class="field"><span class="field-label">Usuario</span><input type="text" name="user" required autocomplete="username" autocapitalize="none" placeholder="seleccion"></label>
           <label class="field"><span class="field-label">Contraseña</span><input type="password" name="pass" required autocomplete="current-password"></label>
           <button type="submit" class="btn" style="width:100%;">Entrar</button>
           <p id="loginError"></p>
@@ -752,6 +752,7 @@ import {
   getFirestore, collection, addDoc, onSnapshot, query, orderBy,
   doc, updateDoc, deleteDoc, serverTimestamp
 } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-firestore.js";
+import { getAuth, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/10.13.2/firebase-auth.js";
 // Mismo proyecto de Firebase que usan tus otras apps (horarios, propinas, caja).
 const firebaseConfig = {
   apiKey: "AIzaSyB5cI5TFAhy3DveiwQFjAORSroo45P29d8",
@@ -796,6 +797,8 @@ const loginView = document.getElementById("loginView");
 const adminView = document.getElementById("adminView");
 
 document.getElementById("showLoginLink").addEventListener("click", () => {
+  // Si este dispositivo ya inició sesión antes, entra directo al panel.
+  if(auth.currentUser){ enterPanel(); return; }
   publicView.style.display = "none";
   loginView.style.display = "block";
 });
@@ -957,10 +960,14 @@ form.addEventListener("submit", function(e){
 });
 
 // ---------------------------------------------------------------------------
-// Login — clave simple, sin autenticación de Firebase (a pedido de Harol).
+// Login con Firebase Authentication. La clave ya NO está escrita en este
+// archivo: Firebase la verifica en sus servidores, y las reglas de Firestore
+// solo dejan ver, cambiar o borrar postulados a la cuenta del equipo de
+// selección. El público solo puede ENVIAR postulaciones.
+// El usuario escribe solo "seleccion"; la app le agrega @cordovapro.local.
 // ---------------------------------------------------------------------------
-const ADMIN_USER = "cordova";
-const ADMIN_PASS = "postulacion2026";
+const auth = getAuth(app);
+const DOMINIO_USUARIOS = "@cordovapro.local";
 let unsubscribeCandidates = null;
 
 function enterPanel(){
@@ -973,26 +980,37 @@ function enterPanel(){
 function exitPanel(){
   adminView.style.display = "none";
   if(unsubscribeCandidates){ unsubscribeCandidates(); unsubscribeCandidates = null; }
+  allDocs = [];
+  candidatesEl.innerHTML = "";
   publicView.style.display = "block";
 }
 
 document.getElementById("loginForm").addEventListener("submit", function(e){
   e.preventDefault();
   const errBox = document.getElementById("loginError");
+  const btn = e.target.querySelector("button[type=submit]");
   errBox.style.display = "none";
   const data = new FormData(e.target);
-  const user = (data.get("user")||"").trim().toLowerCase();
+  let user = (data.get("user")||"").trim().toLowerCase();
   const pass = data.get("pass")||"";
-  if(user === ADMIN_USER && pass === ADMIN_PASS){
-    e.target.reset();
-    enterPanel();
-  } else {
-    errBox.textContent = "Usuario o contraseña incorrectos.";
-    errBox.style.display = "block";
-  }
+  if(user && user.indexOf("@") === -1) user += DOMINIO_USUARIOS;
+  btn.disabled = true;
+  signInWithEmailAndPassword(auth, user, pass)
+    .then(function(){ e.target.reset(); enterPanel(); })
+    .catch(function(err){
+      console.error(err);
+      errBox.textContent = err.code === "auth/too-many-requests"
+        ? "Demasiados intentos. Espera unos minutos e inténtalo de nuevo."
+        : (err.code === "auth/network-request-failed" ? "Sin conexión. Revisa tu internet." : "Usuario o contraseña incorrectos.");
+      errBox.style.display = "block";
+    })
+    .finally(function(){ btn.disabled = false; });
 });
 
-document.getElementById("signOutBtn").addEventListener("click", exitPanel);
+document.getElementById("signOutBtn").addEventListener("click", function(){
+  exitPanel();
+  signOut(auth).catch(console.error);
+});
 
 // ---------------------------------------------------------------------------
 // Panel — lista en vivo
@@ -1021,7 +1039,9 @@ function startListening(){
     render();
   }, function(err){
     console.error(err);
-    showBanner(true, "No se pudo conectar con la base de datos. Revisa tu conexión o las reglas de seguridad.");
+    showBanner(true, err.code === "permission-denied"
+      ? "Esta cuenta no tiene permiso para ver los postulados."
+      : "No se pudo conectar con la base de datos. Revisa tu conexión.");
   });
 }
 
